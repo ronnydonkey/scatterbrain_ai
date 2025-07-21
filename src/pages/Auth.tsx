@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useThoughtFlow } from '@/context/ThoughtFlowContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { NeuralAnimation } from '@/components/effects/NeuralAnimation';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -18,7 +20,13 @@ const Auth = () => {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
+  const { setOriginalThought } = useThoughtFlow();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the thought from location state if it exists
+  const locationState = location.state as { demoThought?: string } | null;
+  const demoThought = locationState?.demoThought;
 
   // Redirect if already authenticated
   if (user) {
@@ -38,6 +46,10 @@ const Auth = () => {
       console.log('Sign in result:', { error });
       
       if (!error) {
+        // Store the demo thought in context if it exists
+        if (demoThought) {
+          setOriginalThought(demoThought);
+        }
         navigate('/');
       }
     } catch (err) {
@@ -57,6 +69,11 @@ const Auth = () => {
       const { error } = await signUp(email, password, firstName, displayName);
       
       if (!error) {
+        // Store the demo thought in context if it exists
+        if (demoThought) {
+          setOriginalThought(demoThought);
+        }
+        
         toast({
           title: "Account Created",
           description: "Please check your email to verify your account.",
@@ -108,16 +125,17 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-gray-800/50 backdrop-blur-xl border-gray-700/50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden flex items-center justify-center p-4">
+      <NeuralAnimation />
+      <Card className="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-xl border-0 shadow-2xl">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
               <Brain className="w-5 h-5 text-white" />
             </div>
-            <CardTitle className="text-2xl font-bold text-white">ScatterBrainAI</CardTitle>
+            <CardTitle className="text-2xl font-bold text-gray-900">ScatterBrainAI</CardTitle>
           </div>
-          <CardDescription className="text-gray-300">
+          <CardDescription className="text-gray-600">
             AI-Powered Content Intelligence Platform
           </CardDescription>
         </CardHeader>
@@ -131,26 +149,26 @@ const Auth = () => {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-gray-300">Email</Label>
+                  <Label htmlFor="email" className="text-gray-700">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-gray-300">Password</Label>
+                  <Label htmlFor="password" className="text-gray-700">Password</Label>
                   <Input
                     id="password"
                     type="password"
                     placeholder="Your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                     required
                   />
                 </div>
@@ -174,7 +192,7 @@ const Auth = () => {
                     variant="outline"
                     onClick={() => handleOAuthSignIn('google')}
                     disabled={loading}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                       <path
@@ -202,7 +220,7 @@ const Auth = () => {
                     variant="outline"
                     onClick={() => handleOAuthSignIn('apple')}
                     disabled={loading}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
@@ -216,48 +234,48 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="first-name" className="text-gray-300">First Name</Label>
+                  <Label htmlFor="first-name" className="text-gray-700">First Name</Label>
                   <Input
                     id="first-name"
                     type="text"
                     placeholder="Your first name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="display-name" className="text-gray-300">Display Name (Optional)</Label>
+                  <Label htmlFor="display-name" className="text-gray-700">Display Name (Optional)</Label>
                   <Input
                     id="display-name"
                     type="text"
                     placeholder="Your display name"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email-signup" className="text-gray-300">Email</Label>
+                  <Label htmlFor="email-signup" className="text-gray-700">Email</Label>
                   <Input
                     id="email-signup"
                     type="email"
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password-signup" className="text-gray-300">Password</Label>
+                  <Label htmlFor="password-signup" className="text-gray-700">Password</Label>
                   <Input
                     id="password-signup"
                     type="password"
                     placeholder="Create a strong password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    className="bg-white border-gray-200 focus:border-purple-400 text-gray-900 placeholder:text-gray-500"
                     required
                   />
                 </div>
@@ -286,7 +304,7 @@ const Auth = () => {
                     variant="outline"
                     onClick={() => handleOAuthSignIn('google')}
                     disabled={loading}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                       <path
@@ -314,7 +332,7 @@ const Auth = () => {
                     variant="outline"
                     onClick={() => handleOAuthSignIn('apple')}
                     disabled={loading}
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    className="bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,11 +18,18 @@ import { useAuth } from '@/hooks/useAuth';
 export default function CleanHomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { setOriginalThought } = useThoughtFlow();
+  const { originalThought, setOriginalThought } = useThoughtFlow();
   const [thought, setThought] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load any existing thought from context when component mounts
+  useEffect(() => {
+    if (originalThought && !thought) {
+      setThought(originalThought);
+    }
+  }, [originalThought, thought]);
 
   const handleQuickCapture = async () => {
     if (!thought.trim()) {
@@ -122,10 +129,10 @@ export default function CleanHomePage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold text-black mb-6 leading-tight drop-shadow-sm">
             What's on your <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">mind</span>?
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+          <p className="text-xl text-gray-800 max-w-2xl mx-auto mb-8 drop-shadow-sm">
             Capture your thoughts and watch them transform into insights, content, and connections with the greatest minds in history.
           </p>
         </motion.div>
@@ -215,8 +222,8 @@ export default function CleanHomePage() {
           className="max-w-6xl mx-auto mb-16"
         >
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Journey from Thought to Impact</h2>
-            <p className="text-lg text-gray-600">
+            <h2 className="text-3xl font-bold text-black mb-2 drop-shadow-sm">Your Journey from Thought to Impact</h2>
+            <p className="text-lg text-gray-800 drop-shadow-sm">
               Capture → Synthesize → Create → Share/Act
             </p>
           </div>
