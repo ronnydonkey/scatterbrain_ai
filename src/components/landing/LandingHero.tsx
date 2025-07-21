@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { MiniGalleryPreview } from './MiniGalleryPreview';
+import { useNavigate } from 'react-router-dom';
 
 import { Sparkles, Brain, Zap } from 'lucide-react';
 
@@ -98,6 +99,8 @@ Note to self: text Sarah about the networking event next Thursday. And pick up d
 ];
 
 export function LandingHero({ demoText, setDemoText, handleDemo, isProcessing }: LandingHeroProps) {
+  const navigate = useNavigate();
+  
   return (
     <section className="relative py-20 overflow-hidden">
       {/* Neural Background Animation */}
@@ -180,7 +183,7 @@ export function LandingHero({ demoText, setDemoText, handleDemo, isProcessing }:
                   </Button>
                   <Button 
                     variant="outline"
-                    onClick={() => window.location.href = '/gallery'}
+                    onClick={() => navigate('/gallery')}
                     className="sm:w-auto py-6 text-lg font-medium border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
                   >
                     <div className="flex items-center space-x-2">
@@ -231,7 +234,7 @@ export function LandingHero({ demoText, setDemoText, handleDemo, isProcessing }:
             <p className="text-muted-foreground mb-4">See the magic in action</p>
             <Button
               variant="outline"
-              onClick={() => window.location.href = '/gallery'}
+              onClick={() => navigate('/gallery')}
               className="border-primary/30 text-primary hover:bg-primary/10"
             >
               <Sparkles className="w-4 h-4 mr-2" />

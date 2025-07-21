@@ -92,8 +92,8 @@ export default function Landing() {
     if (!user) {
       setShowEmailCapture(true);
     } else {
-      // If user is authenticated, redirect to main app
-      navigate('/');
+      // If user is authenticated, redirect to gallery instead of home to avoid redirect loop
+      navigate('/gallery');
     }
   };
 
@@ -181,7 +181,7 @@ export default function Landing() {
       {showEmailCapture && (
         <LandingEmailCapture 
           demoText={demoText}
-          onEmailSubmitted={() => navigate('/')}
+          onEmailSubmitted={() => navigate('/gallery')}
         />
       )}
 

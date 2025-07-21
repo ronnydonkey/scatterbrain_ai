@@ -307,15 +307,9 @@ export default function SimplifiedFlow() {
       }
 
       // Wait a moment for state to settle, then automatically navigate to detailed report
-      setTimeout(() => {
-        const storedInsights = JSON.parse(localStorage.getItem('scatterbrain_insights') || '[]');
-        const latestInsight = storedInsights[0];
-        if (latestInsight) {
-          navigate(`/report/${latestInsight.id}`);
-        } else {
-          setCurrentStep('insights'); // Fallback to insights view
-        }
-      }, 500);
+      // Let users see their results - don't auto-redirect
+      // Users can manually navigate to detailed report if they want
+      setCurrentStep('insights');
 
     } catch (error) {
       console.error('Analysis failed:', error);

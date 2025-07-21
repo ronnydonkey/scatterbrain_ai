@@ -1,5 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,12 +40,53 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
   return result;
 }
 
+async function authenticateUser(req: Request): Promise<{ userId: string; email: string } | null> {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.substring(7);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('Authentication failed:', error?.message);
+      return null;
+    }
+
+    return { userId: user.id, email: user.email || '' };
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // Authenticate user
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED'
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const { userId } = authResult;
     const { audio } = await req.json();
     
     if (!audio) {

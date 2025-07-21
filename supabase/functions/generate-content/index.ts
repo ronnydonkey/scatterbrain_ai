@@ -7,6 +7,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function authenticateUser(req: Request) {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw new Error('Authentication required');
+  }
+
+  const token = authHeader.substring(7);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    throw new Error('Invalid authentication');
+  }
+
+  return { userId: user.id, email: user.email || '' };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -14,6 +34,10 @@ serve(async (req) => {
 
   try {
     console.log('Starting generate-content function');
+    
+    // Authenticate user first
+    const authResult = await authenticateUser(req);
+    const authenticatedUserId = authResult.userId;
     
     const { 
       thoughtId,
@@ -33,18 +57,19 @@ serve(async (req) => {
 
     let thoughtContent = '';
     let organizationId = '';
-    let userId = '';
+    let userId = authenticatedUserId;
 
     if (thoughtId) {
       const { data: thought, error: thoughtError } = await supabase
         .from('thoughts')
         .select('content, user_id, organization_id')
         .eq('id', thoughtId)
+        .eq('user_id', authenticatedUserId) // Ensure user can only access their own thoughts
         .single();
 
       if (thoughtError) {
         console.error('Error fetching thought:', thoughtError);
-        throw new Error('Failed to fetch thought content');
+        throw new Error('Thought not found or access denied');
       }
 
       thoughtContent = thought.content;

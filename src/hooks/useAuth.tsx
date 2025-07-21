@@ -36,10 +36,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     console.log('Auth hook initializing...');
+    let mounted = true;
+    let sessionInitialized = false;
     
-    // Set up auth state listener FIRST
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state change:', { 
           event, 
           session: !!session, 
@@ -47,26 +51,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           userId: session?.user?.id,
           email: session?.user?.email 
         });
+        
+        // Update state atomically
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+        
+        // Only set loading to false if this is the first initialization
+        if (!sessionInitialized) {
+          sessionInitialized = true;
+          setLoading(false);
+        }
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!mounted) return;
+      
+      if (error) {
+        console.error('Error getting initial session:', error);
+        setLoading(false);
+        return;
+      }
+      
       console.log('Initial session check:', { 
         session: !!session, 
         user: !!session?.user,
         userId: session?.user?.id,
         email: session?.user?.email 
       });
-      setSession(session);
-      setUser(session?.user ?? null);
+      
+      // Only update if auth state change hasn't already handled this
+      if (!sessionInitialized) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        sessionInitialized = true;
+        setLoading(false);
+      }
+    }).catch((error) => {
+      if (!mounted) return;
+      console.error('Error in getSession:', error);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

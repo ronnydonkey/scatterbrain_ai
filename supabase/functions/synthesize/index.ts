@@ -1,8 +1,11 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -393,6 +396,50 @@ function calculateEngagementPrediction(content: string, platform: string): numbe
   return Math.min(Math.max(score, 0.1), 1.0);
 }
 
+// Rate limiting for unauthenticated requests
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+async function authenticateUser(req: Request): Promise<{ userId: string; email: string } | null> {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.substring(7);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('Authentication failed:', error?.message);
+      return null;
+    }
+
+    return { userId: user.id, email: user.email || '' };
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return null;
+  }
+}
+
+function checkRateLimit(identifier: string, limit: number = 10, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(identifier);
+  
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (userLimit.count >= limit) {
+    return false;
+  }
+  
+  userLimit.count++;
+  return true;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -406,14 +453,48 @@ serve(async (req) => {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Authenticate user
+    const authResult = await authenticateUser(req);
+    if (!authResult) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED'
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const { userId, email } = authResult;
+
+    // Rate limiting per user
+    if (!checkRateLimit(userId, 20, 60000)) { // 20 requests per minute per user
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Rate limit exceeded. Please try again in a minute.',
+          code: 'RATE_LIMIT_EXCEEDED'
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     const requestData: SynthesizeRequest = await req.json();
-    const { input, userId, timestamp, sessionId, preferences } = requestData;
+    const { input, timestamp, sessionId, preferences } = requestData;
 
     if (!input || input.trim().length === 0) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Input text is required' 
+          error: 'Input text is required',
+          code: 'INVALID_INPUT'
         }),
         {
           status: 400,
@@ -422,7 +503,22 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing thought for user ${userId || 'anonymous'}: ${input.substring(0, 100)}...`);
+    // Input validation
+    if (input.length > 10000) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Input text too long (max 10,000 characters)',
+          code: 'INPUT_TOO_LONG'
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    console.log(`Processing thought for user ${userId}: ${input.substring(0, 100)}...`);
 
     // Step 1: Detect topics from user input
     const detectedTopics = detectTopics(input);
@@ -525,14 +621,34 @@ serve(async (req) => {
     
     const processingTime = (Date.now() - startTime) / 1000;
     
+    // Provide specific error codes for different error types
+    let statusCode = 500;
+    let errorCode = 'INTERNAL_ERROR';
+    let errorMessage = 'An internal error occurred';
+    
+    if (error.message?.includes('OpenAI API error')) {
+      statusCode = 502;
+      errorCode = 'AI_SERVICE_ERROR';
+      errorMessage = 'AI service temporarily unavailable';
+    } else if (error.message?.includes('Invalid JSON')) {
+      statusCode = 502;
+      errorCode = 'AI_RESPONSE_ERROR';
+      errorMessage = 'AI service returned invalid response';
+    } else if (error.message?.includes('timeout')) {
+      statusCode = 504;
+      errorCode = 'TIMEOUT_ERROR';
+      errorMessage = 'Request timed out, please try again';
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
+        error: errorMessage,
+        code: errorCode,
         processingTime: processingTime,
       }),
       {
-        status: 500,
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

@@ -43,6 +43,7 @@ const AppHeader = () => {
   const navigationItems = [
     { name: 'Thoughts', path: '/', exact: true },
     { name: 'Gallery', path: '/gallery' },
+    { name: 'Board', path: '/board' },
     { name: 'Profile', path: '/profile' }
   ];
 
