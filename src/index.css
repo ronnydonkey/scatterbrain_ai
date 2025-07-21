@@ -150,7 +150,7 @@
   /* === ENHANCED TYPOGRAPHY HIERARCHY === */
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
-    color: hsl(var(--foreground));
+    /* Removed color override to allow Tailwind classes to work */
   }
   
   h1 {
