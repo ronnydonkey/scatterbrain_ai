@@ -8,7 +8,6 @@ import CleanInsightGallery from '@/pages/CleanInsightGallery';
 import CleanAdvisoryBoard from '@/pages/CleanAdvisoryBoard';
 import CleanSynthesis from '@/pages/CleanSynthesis';
 import Profile from '@/pages/Profile';
-import Landing from '@/pages/Landing';
 import ViralLanding from '@/pages/ViralLanding';
 
 export function CleanAppRouter() {
@@ -52,9 +51,9 @@ export function CleanAppRouter() {
   if (user) {
     const path = location.pathname;
     
-    // If authenticated user is on landing page, allow them to stay
+    // If authenticated user is on landing page, show the updated design
     if (path === '/landing') {
-      return <Landing />;
+      return <ViralLanding />;
     }
     
     // Map routes to components
@@ -79,5 +78,5 @@ export function CleanAppRouter() {
   }
 
   // Fallback - shouldn't reach here due to useEffect redirects
-  return <Landing />;
+  return <ViralLanding />;
 }
